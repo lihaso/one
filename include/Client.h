@@ -58,13 +58,7 @@ public:
      * @param message_size for XML elements in the client library (in bytes)
      * @throws Exception if the authorization options are invalid
      */
-    Client(const string& secret, const string& endpoint, size_t message_size)
-    {
-        set_one_auth(secret);
-        set_one_endpoint(endpoint);
-
-        xmlrpc_limit_set(XMLRPC_XML_SIZE_LIMIT_ID, message_size);
-    }
+    Client(const string& secret, const string& endpoint, size_t message_size);
 
     const string& get_oneauth()
     {
@@ -81,19 +75,15 @@ public:
         return xmlrpc_limit_get(XMLRPC_XML_SIZE_LIMIT_ID);
     }
 
-    //--------------------------------------------------------------------------
-    //  PRIVATE ATTRIBUTES AND METHODS
-    //--------------------------------------------------------------------------
+    /**
+     *  Reads ONE_AUTH from environment or its default location at
+     *  $HOME/.one/one_auth
+     */
+    static int read_oneauth(string &secret, string& error);
 
 private:
     string  one_auth;
     string  one_endpoint;
-
-    void set_one_auth(string secret);
-
-    void set_one_endpoint(string endpoint);
-
-    void read_oneauth(string &secret);
 };
 
 #endif /*ONECLIENT_H_*/
