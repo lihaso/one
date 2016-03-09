@@ -40,8 +40,11 @@ protected:
         int oid = xmlrpc_c::value_int(pl.getInt(1));
         std::string xml = xmlrpc_c::value_string(pl.getString(2));
 
-        if ( basic_authorization(oid, att) == false )
+        if ( att.uid != UserPool::ONEADMIN_ID )
         {
+            att.resp_msg = "Permission denied";
+            failure_response(AUTHORIZATION, att);
+
             return;
         }
 

@@ -141,9 +141,56 @@ int MarketPlaceAppPool::drop(PoolObjectSQL * objsql, std::string& error_msg)
 /* -------------------------------------------------------------------------- */
 /* -------------------------------------------------------------------------- */
 
-int MarketPlaceAppPool::import(const std::string& t64, int mp_id,
+int MarketPlaceAppPool::import(const std::string& t64, int mp_id, int mp_zone_id,
         const std::string& mp_name, std::string& error_str)
 {
+	// ---------------------------------------------------------------------- //
+	// Slave forwards DB import to federation master                          //
+	// ---------------------------------------------------------------------- //
+    if (Nebula::instance().is_federation_slave())
+    {
+        Client * client = Client::client();
+
+        xmlrpc_c::value result;
+        vector<xmlrpc_c::value> values;
+
+        std::ostringstream oss;
+
+        try
+        {
+            client->call(client->get_endpoint(),
+                    "one.marketapp.allocatedb",
+                    "si",
+                    &result,
+                    client->get_oneauth().c_str(),
+					t64.c_str(),
+                    mp_id);
+        }
+        catch (exception const& e)
+        {
+            oss << "Cannot import  marketapp in federation master db: "<<e.what();
+            NebulaLog::log("MKP", Log::ERROR, oss);
+
+            return -1;
+        }
+
+        values = xmlrpc_c::value_array(result).vectorValueValue();
+
+        if ( xmlrpc_c::value_boolean(values[0]) == false )
+        {
+            std::string error = xmlrpc_c::value_string(values[1]);
+
+            oss << "Cannot import marketapp in federation master db: " << error;
+            NebulaLog::log("MKP", Log::ERROR, oss);
+            return -1;
+        }
+
+        return 0;
+    }
+
+	// ---------------------------------------------------------------------- //
+	// Master import logic                                                    //
+	// ---------------------------------------------------------------------- //
     MarketPlaceApp * app = new MarketPlaceApp(UserPool::ONEADMIN_ID,
         GroupPool::ONEADMIN_ID, UserPool::oneadmin_name,
         GroupPool::ONEADMIN_NAME, 0133, 0);
@@ -158,6 +205,7 @@ int MarketPlaceAppPool::import(const std::string& t64, int mp_id,
 
     app->market_id   = mp_id;
     app->market_name = mp_name;
+	app->zone_id     = mp_zone_id;
 
     if ( !PoolObjectSQL::name_is_valid(app->name, error_str) )
     {

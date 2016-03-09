@@ -22,6 +22,7 @@
 #include "RequestManagerInfo.h"
 #include "RequestManagerDelete.h"
 #include "RequestManagerAllocate.h"
+#include "RequestManagerAllocateDB.h"
 #include "RequestManagerUpdateTemplate.h"
 #include "RequestManagerUpdateDB.h"
 #include "RequestManagerDropDB.h"
@@ -1003,12 +1004,16 @@ void RequestManager::register_xml_methods()
 
         xmlrpc_c::methodPtr marketapp_updatedb(new MarketPlaceAppUpdateDB());
         xmlrpc_c::methodPtr marketapp_dropdb(new MarketPlaceAppDropDB());
+        xmlrpc_c::methodPtr marketapp_allocatedb(new MarketPlaceAppAllocateDB());
 
         RequestManagerRegistry.addMethod("one.marketapp.updatedb",
                 marketapp_updatedb);
 
         RequestManagerRegistry.addMethod("one.marketapp.dropdb",
                 marketapp_dropdb);
+
+        RequestManagerRegistry.addMethod("one.marketapp.allocatedb",
+                marketapp_allocatedb);
     }
 
     xmlrpc_c::methodPtr marketapp_allocate(new MarketPlaceAppAllocate());

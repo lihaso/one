@@ -121,6 +121,7 @@ static void monitor_action(
     }
 
     std::string   name;
+    int           zone_id;
     MarketPlace * market = marketpool->get(id, true);
 
     if (market == 0 )
@@ -128,7 +129,8 @@ static void monitor_action(
         return;
     }
 
-    name = market->get_name();
+    name    = market->get_name();
+    zone_id = market->get_zone_id();
 
     market->update_monitor(monitor_data);
 
@@ -143,7 +145,7 @@ static void monitor_action(
 
     for (int i=0; i< num ; i++)
     {
-        int rc = apppool->import(apps[i]->value(), id, name, err);
+        int rc = apppool->import(apps[i]->value(), id, zone_id, name, err);
 
         if ( rc == -1 )
         {
@@ -153,11 +155,14 @@ static void monitor_action(
         {
             MarketPlace * market = marketpool->get(id, true);
 
-            market->add_marketapp(rc);
+            if ( market != 0 )
+            {
+                market->add_marketapp(rc);
 
-            marketpool->update(market);
+                marketpool->update(market);
 
-            market->unlock();
+                market->unlock();
+            }
         }
     }
 
