@@ -17,6 +17,7 @@
 #include "RequestManagerAllocate.h"
 
 #include "Nebula.h"
+#include "Client.h"
 #include "PoolObjectSQL.h"
 #include "MarketPlacePool.h"
 #include "MarketPlaceAppPool.h"
@@ -883,8 +884,63 @@ int MarketPlaceAllocate::pool_allocate(
     MarketPlacePool *     mppool = static_cast<MarketPlacePool *>(pool);
     MarketPlaceTemplate * ttmpl  = static_cast<MarketPlaceTemplate *>(tmpl);
 
-    return mppool->allocate(att.uid, att.gid, att.uname, att.gname, att.umask,
+    Nebula& nd = Nebula::instance();
+
+    int rc = 0;
+
+    // ---------------------------------------------------------------------- //
+    // Perform market allocation:                                             //
+    //   - slaves forward db allocation to federation master                  //
+    //   - master allocates app in db                                         //
+    // ---------------------------------------------------------------------- //
+    if ( nd.is_federation_slave() ) //slave code, forward db allocation
+    {
+        std::string tmpl_xml;
+
+        xmlrpc_c::value result;
+        vector<xmlrpc_c::value> values;
+
+        ttmpl->replace("ZONE_ID", nd.get_zone_id());
+
+        try
+        {
+            Client * client = Client::client();
+
+            client->call(client->get_endpoint(),
+                    "one.market.allocate",
+                    "ss",
+                    &result,
+                    client->get_oneauth().c_str(),
+                    ttmpl->to_xml(tmpl_xml).c_str());
+        }
+        catch (exception const& e)
+        {
+            att.resp_msg = e.what();
+            return -1;
+        }
+
+        values = xmlrpc_c::value_array(result).vectorValueValue();
+
+        if ( xmlrpc_c::value_boolean(values[0]) == false )
+        {
+            att.resp_msg = xmlrpc_c::value_string(values[1]);
+            return -1;
+        }
+    }
+    else //master code, db allocation
+    {
+        int zone_id;
+
+        if (!ttmpl->get("ZONE_ID", zone_id))
+        {
+            ttmpl->replace("ZONE_ID", nd.get_zone_id());
+        }
+
+        rc = mppool->allocate(att.uid, att.gid, att.uname, att.gname, att.umask,
         ttmpl, &id, att.resp_msg);
+    }
+
+    return rc;
 }
 
 /* -------------------------------------------------------------------------- */
@@ -896,10 +952,21 @@ int MarketPlaceAppAllocate::pool_allocate(
         int&                        id,
         RequestAttributes&          att)
 {
+
+    Nebula& nd = Nebula::instance();
+
+    MarketPlaceManager *     marketm = nd.get_marketm();
     MarketPlaceAppPool *     appool = static_cast<MarketPlaceAppPool *>(pool);
     MarketPlaceAppTemplate * ttmpl  = static_cast<MarketPlaceAppTemplate *>(tmpl);
 
     int mp_id = xmlrpc_c::value_int(paramList.getInt(2));
+    std::string mp_data;
+
+    bool import_app = false;
+
+    // ---------------------------------------------------------------------- //
+    // Get Marketplace information for this app                               //
+    // ---------------------------------------------------------------------- //
 
     MarketPlace * mp = mppool->get(mp_id, true);
 
@@ -910,7 +977,7 @@ int MarketPlaceAppAllocate::pool_allocate(
     }
 
     std::string mp_name = mp->get_name();
-    std::string mp_data;
+    int      mp_zone_id = mp->get_zone_id();
 
     if ( !mp->is_action_supported(MarketPlaceApp::CREATE) )
     {
@@ -924,18 +991,104 @@ int MarketPlaceAppAllocate::pool_allocate(
 
     mp->unlock();
 
-    int rc = appool->allocate(att.uid, att.gid, att.uname, att.gname, att.umask,
-        ttmpl, mp_id, mp_name, mp_data, &id, att.resp_msg);
+    // ---------------------------------------------------------------------- //
+    // Perform marketapp allocation:                                          //
+    //   - slaves forward db allocation to federation master                  //
+    //   - master allocates app in db                                         //
+    // ---------------------------------------------------------------------- //
 
-	if (rc < 0)
-	{
-		return rc;
-	}
-
-    mp = mppool->get(mp_id, true);
-
-    if ( mp != 0 )  // TODO: error otherwise or leave app in ERROR?
+    if ( nd.is_federation_slave() ) //slave code, forward db allocation
     {
+        std::string tmpl_xml;
+
+        xmlrpc_c::value result;
+        vector<xmlrpc_c::value> values;
+
+        if ( mp_zone_id != nd.get_zone_id() )
+        {
+            att.resp_msg = "Marketplace is not in this OpenNebula zone";
+            return -1;
+        }
+
+        ttmpl->replace("ZONE_ID", mp_zone_id);
+
+        try
+        {
+            Client * client = Client::client();
+
+            client->call(client->get_endpoint(),
+                    "one.marketapp.allocate",
+                    "ssi",
+                    &result,
+                    client->get_oneauth().c_str(),
+                    ttmpl->to_xml(tmpl_xml).c_str(),
+                    mp_id);
+        }
+        catch (exception const& e)
+        {
+            att.resp_msg = e.what();
+            return -1;
+        }
+
+        values = xmlrpc_c::value_array(result).vectorValueValue();
+
+        if ( xmlrpc_c::value_boolean(values[0]) == false )
+        {
+            att.resp_msg = xmlrpc_c::value_string(values[1]);
+            return -1;
+        }
+
+        import_app = true;
+    }
+    else //master code, db allocation
+    {
+        int zone_id;
+
+        if (ttmpl->get("ZONE_ID", zone_id)) // app from slave
+        {
+            import_app = false;
+        }
+        else //local request
+        {
+            zone_id = nd.get_zone_id();
+
+            ttmpl->replace("ZONE_ID", zone_id);
+
+            import_app = true;
+        }
+
+        if ( mp_zone_id != zone_id )
+        {
+            att.resp_msg = "Marketplace and marketapp are not in the same zone";
+            return -1;
+        }
+
+        if ( appool->allocate(att.uid, att.gid, att.uname, att.gname,
+                att.umask, ttmpl, mp_id, mp_name, &id, att.resp_msg) < 0 )
+        {
+            return -1;
+        }
+
+        mp = mppool->get(mp_id, true);
+
+        if ( mp == 0 )
+        {
+            att.resp_msg = "Marketplace no longer exists";
+
+            MarketPlaceApp * app = appool->get(id, true);
+
+            if ( app != 0 )
+            {
+                string aux_str;
+
+                appool->drop(app, aux_str);
+
+                app->unlock();
+            }
+
+            return -1;
+        }
+
         mp->add_marketapp(id);
 
         mppool->update(mp);
@@ -943,5 +1096,14 @@ int MarketPlaceAppAllocate::pool_allocate(
         mp->unlock();
     }
 
-    return rc;
+    if ( import_app ) //Import the app in the target zone
+    {
+        if (marketm->import_app(id, mp_data, att.resp_msg) == -1)
+        {
+            return -1;
+        }
+    }
+
+    return 0;
 }
+

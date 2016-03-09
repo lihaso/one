@@ -83,6 +83,14 @@ public:
     };
 
     /**
+     *  Get zone for this market
+     *    @return zone id
+     */
+    int get_zone_id() const
+    {
+        return zone_id;
+    };
+    /**
      *  Set monitor information for the MarketPlace
      *    @param data template with monitor information
      */
@@ -126,6 +134,11 @@ private:
      * Used capacity in MB
      */
      long long used_mb;
+
+    /**
+     * Zone where this market lives
+     */
+     int zone_id;
 
     /**
      *  Supported actions on MarketPlaceApps

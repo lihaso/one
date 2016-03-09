@@ -50,6 +50,7 @@ MarketPlace::MarketPlace(
         total_mb(0),
         free_mb(0),
         used_mb(0),
+        zone_id(-1),
         marketapps("MARKETPLACEAPPS")
 {
     if (mp_template != 0)
@@ -158,6 +159,12 @@ int MarketPlace::insert(SqlDB *db, string& error_str)
         goto error_common;
     }
 
+    if (!get_template_attribute("ZONE_ID", zone_id))
+    {
+        goto error_zone;
+    }
+
+    remove_template_attribute("ZONE_ID");
     //--------------------------------------------------------------------------
 
     return insert_replace(db, false, error_str);
@@ -165,6 +172,9 @@ int MarketPlace::insert(SqlDB *db, string& error_str)
 error_mad:
     error_str = "No marketplace driver (MARKET_MAD) in template.";
     goto error_common;
+
+error_zone:
+    error_str = "OpenNebula zone (ZONE_ID) not set in template.";
 
 error_common:
     NebulaLog::log("MKP", Log::ERROR, error_str);
@@ -273,6 +283,7 @@ std::string& MarketPlace::to_xml(std::string& xml) const
 			"<GNAME>" << gname << "</GNAME>" <<
 			"<NAME>"  << name  << "</NAME>"  <<
 			"<MARKET_MAD>"<<one_util::escape_xml(market_mad)<<"</MARKET_MAD>"<<
+			"<ZONE_ID>"   <<one_util::escape_xml(zone_id)<<"</ZONE_ID>"<<
 			"<TOTAL_MB>" << total_mb << "</TOTAL_MB>" <<
 			"<FREE_MB>"  << free_mb  << "</FREE_MB>"  <<
 			"<USED_MB>"  << used_mb  << "</USED_MB>"  <<
@@ -331,6 +342,7 @@ int MarketPlace::from_xml(const std::string &xml_str)
     rc += xpath(name,  "/MARKETPLACE/NAME",  "not_found");
 
     rc += xpath(market_mad, "/MARKETPLACE/MARKET_MAD", "not_found");
+    rc += xpath(zone_id,    "/MARKETPLACE/ZONE_ID", -1);
 
     rc += xpath<long long>(total_mb, "/MARKETPLACE/TOTAL_MB", 0);
     rc += xpath<long long>(free_mb,  "/MARKETPLACE/FREE_MB",  0);

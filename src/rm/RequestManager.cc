@@ -23,6 +23,8 @@
 #include "RequestManagerDelete.h"
 #include "RequestManagerAllocate.h"
 #include "RequestManagerUpdateTemplate.h"
+#include "RequestManagerUpdateDB.h"
+#include "RequestManagerDropDB.h"
 #include "RequestManagerChown.h"
 #include "RequestManagerChmod.h"
 #include "RequestManagerClone.h"
@@ -926,7 +928,6 @@ void RequestManager::register_xml_methods()
 
     /* MarketPlace related methods */
 
-    xmlrpc_c::method * market_allocate_pt;
     xmlrpc_c::method * market_update_pt;
     xmlrpc_c::method * market_delete_pt;
     xmlrpc_c::method * market_chmod_pt;
@@ -935,7 +936,6 @@ void RequestManager::register_xml_methods()
 
     if (nebula.is_federation_slave())
     {
-        market_allocate_pt = new RequestManagerProxy("one.market.allocate");
         market_update_pt   = new RequestManagerProxy("one.market.update");
         market_delete_pt   = new RequestManagerProxy("one.market.delete");
         market_chmod_pt    = new RequestManagerProxy("one.market.chmod");
@@ -944,15 +944,19 @@ void RequestManager::register_xml_methods()
     }
     else
     {
-        market_allocate_pt = new MarketPlaceAllocate();
         market_update_pt   = new MarketPlaceUpdateTemplate();
         market_delete_pt   = new MarketPlaceDelete();
         market_chmod_pt    = new MarketPlaceChmod();
         market_chown_pt    = new MarketPlaceChown();
         market_rename_pt   = new MarketPlaceRename();
+
+        xmlrpc_c::methodPtr market_updatedb(new MarketPlaceUpdateDB());
+
+        RequestManagerRegistry.addMethod("one.market.updatedb",
+                market_updatedb);
     }
 
-    xmlrpc_c::methodPtr market_allocate(market_allocate_pt);
+    xmlrpc_c::methodPtr market_allocate(new MarketPlaceAllocate());
     xmlrpc_c::methodPtr market_update(market_update_pt);
     xmlrpc_c::methodPtr market_delete(market_delete_pt);
     xmlrpc_c::methodPtr market_chmod(market_chmod_pt);
@@ -975,9 +979,7 @@ void RequestManager::register_xml_methods()
 
     /* MarketPlaceApp related methods */
 
-    xmlrpc_c::method * marketapp_allocate_pt;
     xmlrpc_c::method * marketapp_update_pt;
-    xmlrpc_c::method * marketapp_delete_pt;
     xmlrpc_c::method * marketapp_chmod_pt;
     xmlrpc_c::method * marketapp_chown_pt;
     xmlrpc_c::method * marketapp_enable_pt;
@@ -985,9 +987,7 @@ void RequestManager::register_xml_methods()
 
     if (nebula.is_federation_slave())
     {
-        marketapp_allocate_pt = new RequestManagerProxy("one.marketapp.allocate");
         marketapp_update_pt   = new RequestManagerProxy("one.marketapp.update");
-        marketapp_delete_pt   = new RequestManagerProxy("one.marketapp.delete");
         marketapp_chmod_pt    = new RequestManagerProxy("one.marketapp.chmod");
         marketapp_chown_pt    = new RequestManagerProxy("one.marketapp.chown");
         marketapp_enable_pt   = new RequestManagerProxy("one.marketapp.enable");
@@ -995,18 +995,25 @@ void RequestManager::register_xml_methods()
     }
     else
     {
-        marketapp_allocate_pt = new MarketPlaceAppAllocate();
         marketapp_update_pt   = new MarketPlaceAppUpdateTemplate();
-        marketapp_delete_pt   = new MarketPlaceAppDelete();
         marketapp_chmod_pt    = new MarketPlaceAppChmod();
         marketapp_chown_pt    = new MarketPlaceAppChown();
         marketapp_enable_pt   = new MarketPlaceAppEnable();
         marketapp_rename_pt   = new MarketPlaceAppRename();
+
+        xmlrpc_c::methodPtr marketapp_updatedb(new MarketPlaceAppUpdateDB());
+        xmlrpc_c::methodPtr marketapp_dropdb(new MarketPlaceAppDropDB());
+
+        RequestManagerRegistry.addMethod("one.marketapp.updatedb",
+                marketapp_updatedb);
+
+        RequestManagerRegistry.addMethod("one.marketapp.dropdb",
+                marketapp_dropdb);
     }
 
-    xmlrpc_c::methodPtr marketapp_allocate(marketapp_allocate_pt);
+    xmlrpc_c::methodPtr marketapp_allocate(new MarketPlaceAppAllocate());
     xmlrpc_c::methodPtr marketapp_update(marketapp_update_pt);
-    xmlrpc_c::methodPtr marketapp_delete(marketapp_delete_pt);
+    xmlrpc_c::methodPtr marketapp_delete(new MarketPlaceAppDelete());
     xmlrpc_c::methodPtr marketapp_chmod(marketapp_chmod_pt);
     xmlrpc_c::methodPtr marketapp_chown(marketapp_chown_pt);
     xmlrpc_c::methodPtr marketapp_enable(marketapp_enable_pt);

@@ -54,7 +54,8 @@ MarketPlaceApp::MarketPlaceApp(
         market_id(-1),
         market_name(""),
         state(INIT),
-        type(IMAGE)
+        type(IMAGE),
+        zone_id(-1)
 {
     if (app_template != 0)
     {
@@ -117,6 +118,13 @@ int MarketPlaceApp::insert(SqlDB *db, string& error_str)
 
     remove_template_attribute("ORIGIN_ID");
 
+    if (!get_template_attribute("ZONE_ID", zone_id))
+    {
+        goto error_zone;
+    }
+
+    remove_template_attribute("ZONE_ID");
+
     get_template_attribute("DESCRIPTION", description);
 
     get_template_attribute("APPTEMPLATE64", apptemplate64);
@@ -134,8 +142,14 @@ int MarketPlaceApp::insert(SqlDB *db, string& error_str)
 
     return insert_replace(db, false, error_str);
 
+error_zone:
+    error_str = "Missing ZONE_ID for the MARKETPLACEAPP";
+    goto error_common;
+
 error_origin:
     error_str = "Missing ORIGIN_ID for the MARKETPLACEAPP";
+
+error_common:
     NebulaLog::log("MKP", Log::ERROR, error_str);
     return -1;
 }
@@ -240,6 +254,7 @@ std::string& MarketPlaceApp::to_xml(std::string& xml) const
 			"<GNAME>"          << gname         << "</GNAME>" <<
 			"<REGTIME>"        << regtime       << "</REGTIME>" <<
 			"<NAME>"           << name          << "</NAME>" <<
+            "<ZONE_ID>"   << one_util::escape_xml(zone_id)  << "</ZONE_ID>" <<
             "<ORIGIN_ID>" << one_util::escape_xml(origin_id)<< "</ORIGIN_ID>" <<
             "<SOURCE>"    << one_util::escape_xml(source)   << "</SOURCE>" <<
             "<MD5>"       << one_util::escape_xml(md5)      << "</MD5>" <<
@@ -284,6 +299,7 @@ int MarketPlaceApp::from_xml(const std::string &xml_str)
     rc += xpath<time_t>(regtime,"/MARKETPLACEAPP/REGTIME", -1);
     rc += xpath(source,       "/MARKETPLACEAPP/SOURCE", "not_found");
     rc += xpath(origin_id,    "/MARKETPLACEAPP/ORIGIN_ID", -1);
+    rc += xpath(zone_id,      "/MARKETPLACEAPP/ZONE_ID", -1);
     rc += xpath(istate,       "/MARKETPLACEAPP/STATE", -1);
     rc += xpath(itype,        "/MARKETPLACEAPP/TYPE",  -1);
     rc += xpath(description,  "/MARKETPLACEAPP/DESCRIPTION", "not_found");

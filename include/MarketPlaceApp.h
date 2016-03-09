@@ -235,6 +235,11 @@ public:
         return state;
     }
 
+    int get_zone_id() const
+    {
+        return zone_id;
+    }
+
     //--------------------------------------------------------------------------
     // Set Marketplace app attributes
     //--------------------------------------------------------------------------
@@ -334,6 +339,11 @@ private:
      *  Origin of this App
      */
     int origin_id;
+
+    /**
+     * ID of the zone where this app lives
+     */
+    int zone_id;
 
     // *************************************************************************
     // Constructor

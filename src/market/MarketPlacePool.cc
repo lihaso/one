@@ -16,6 +16,7 @@
 
 #include "MarketPlacePool.h"
 #include "User.h"
+#include "Client.h"
 #include "Nebula.h"
 
 /* -------------------------------------------------------------------------- */
@@ -182,11 +183,45 @@ int MarketPlacePool::update(PoolObjectSQL * objsql)
 {
     if (Nebula::instance().is_federation_slave())
     {
-        NebulaLog::log("ONE",Log::ERROR,
-                "MarketPlacePool::update called, but this "
-                "OpenNebula is a federation slave");
+        std::string tmpl_xml;
+        Client * client = Client::client();
 
-        return -1;
+        xmlrpc_c::value result;
+        vector<xmlrpc_c::value> values;
+
+        std::ostringstream oss;
+
+        try
+        {
+            client->call(client->get_endpoint(),
+                    "one.market.updatedb",
+                    "sis",
+                    &result,
+                    client->get_oneauth().c_str(),
+                    objsql->get_oid(),
+                    objsql->to_xml(tmpl_xml).c_str());
+        }
+        catch (exception const& e)
+        {
+            oss << "Cannot update market in federation master db: "<<e.what();
+            NebulaLog::log("MKP", Log::ERROR, oss);
+
+            return -1;
+        }
+
+        values = xmlrpc_c::value_array(result).vectorValueValue();
+
+        if ( xmlrpc_c::value_boolean(values[0]) == false )
+        {
+            std::string error = xmlrpc_c::value_string(values[1]);
+
+            oss << "Cannot update market in federation master db: " << error;
+            NebulaLog::log("MKP", Log::ERROR, oss);
+
+            return -1;
+        }
+
+        return 0;
     }
 
     return PoolSQL::update(objsql);
