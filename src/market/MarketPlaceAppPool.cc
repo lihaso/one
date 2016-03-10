@@ -40,7 +40,7 @@ static int master_allocate(MarketPlaceApp * mp, string& error)
                 "si",
                 &result,
                 client->get_oneauth().c_str(),
-                mp_xml);
+                mp_xml.c_str());
     }
     catch (exception const& e)
     {

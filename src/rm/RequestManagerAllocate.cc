@@ -896,7 +896,7 @@ int MarketPlaceAppAllocate::pool_allocate(
         int&                        id,
         RequestAttributes&          att)
 {
-    MarketPlaceManager*    marketm = nd.get_marketm();
+    MarketPlaceManager*    marketm = Nebula::instance().get_marketm();
 
     MarketPlaceAppPool*     appool = static_cast<MarketPlaceAppPool *>(pool);
     MarketPlaceAppTemplate* ttmpl  = static_cast<MarketPlaceAppTemplate *>(tmpl);
