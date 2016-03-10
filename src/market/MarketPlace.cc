@@ -140,7 +140,7 @@ int MarketPlace::parse_template(string& error_str)
 {
 	//MarketPlacePool::allocate checks NAME & ZONE_ID
     erase_template_attribute("NAME", name);
-    erase_template_attribute("ZONE_ID", name);
+    remove_template_attribute("ZONE_ID");
 
     get_template_attribute("MARKET_MAD", market_mad);
 
