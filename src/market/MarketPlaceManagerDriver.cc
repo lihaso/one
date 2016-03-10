@@ -336,7 +336,7 @@ error_parse_template:
 
 error_attributes:
     app_failure_action(0, apppool, id,
-        "Error importing app into marketplace. Missing app atributes.");
+        "Error importing app into marketplace. Missing app attributes.");
     return -1;
 
 error_app:
