@@ -173,8 +173,6 @@ int MarketPlacePool::allocate(
 
         *oid = xmlrpc_c::value_int(values[1]);
 
-        delete mp;
-
         return *oid;
     }
 
