@@ -538,6 +538,8 @@ int MarketPlaceAppDelete::drop(int oid, PoolObjectSQL * object, string& emsg)
 
         oss << "Marketapp can only be deleted from zone " << zone_id;
         emsg = oss.str();
+
+        return -1;
     }
 
     MarketPlace * mp = marketpool->get(mp_id, true);
