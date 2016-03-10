@@ -44,7 +44,7 @@ Client::Client(const string& secret, const string& endpoint, size_t message_size
     {
         one_auth = secret;
     }
-    else if (read_oneauth(one_auth, error) != 0 );
+    else if (read_oneauth(one_auth, error) != 0 )
     {
         NebulaLog::log("XMLRPC", Log::ERROR, error);
         throw runtime_error(error);
