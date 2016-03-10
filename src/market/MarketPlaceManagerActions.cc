@@ -69,8 +69,6 @@ int MarketPlaceManager::import_app(
 
 			if ( image == 0 )
 			{
-				err = "Image does not exist.";
-				return -1;
                 goto error_noimage;
 			}
 

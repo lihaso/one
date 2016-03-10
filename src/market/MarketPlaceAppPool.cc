@@ -198,7 +198,7 @@ int MarketPlaceAppPool::drop(PoolObjectSQL * objsql, std::string& error_msg)
 /* -------------------------------------------------------------------------- */
 /* -------------------------------------------------------------------------- */
 
-int MarketPlaceAppPool::import(const std::string& t64, int mp_id, int mp_zone_id,
+int MarketPlaceAppPool::import(const std::string& t64, int mp_id,
         const std::string& mp_name, std::string& error_str)
 {
     // -------------------------------------------------------------------------
@@ -216,7 +216,7 @@ int MarketPlaceAppPool::import(const std::string& t64, int mp_id, int mp_zone_id
 
     app->market_id   = mp_id;
     app->market_name = mp_name;
-	app->zone_id     = mp_zone_id;
+	app->zone_id     = Nebula::instance().get_zone_id();
 
     if ( !PoolObjectSQL::name_is_valid(app->name, error_str) )
     {

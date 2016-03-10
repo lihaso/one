@@ -17,7 +17,6 @@
 #include "RequestManagerAllocate.h"
 
 #include "Nebula.h"
-#include "Client.h"
 #include "PoolObjectSQL.h"
 #include "MarketPlacePool.h"
 #include "MarketPlaceAppPool.h"
@@ -881,8 +880,8 @@ int MarketPlaceAllocate::pool_allocate(
         int&                        id,
         RequestAttributes&          att)
 {
-    MarketPlacePool*     mppool = static_cast<MarketPlacePool *>(pool);
-    MarketPlaceTemplate* ttmpl  = static_cast<MarketPlaceTemplate *>(tmpl);
+    MarketPlacePool *     mppool = static_cast<MarketPlacePool *>(pool);
+    MarketPlaceTemplate * ttmpl  = static_cast<MarketPlaceTemplate *>(tmpl);
 
     return mppool->allocate(att.uid, att.gid, att.uname, att.gname, att.umask,
         ttmpl, &id, att.resp_msg);
@@ -897,10 +896,8 @@ int MarketPlaceAppAllocate::pool_allocate(
         int&                        id,
         RequestAttributes&          att)
 {
-
-    Nebula& nd = Nebula::instance();
-
     MarketPlaceManager*    marketm = nd.get_marketm();
+
     MarketPlaceAppPool*     appool = static_cast<MarketPlaceAppPool *>(pool);
     MarketPlaceAppTemplate* ttmpl  = static_cast<MarketPlaceAppTemplate *>(tmpl);
 
@@ -943,12 +940,12 @@ int MarketPlaceAppAllocate::pool_allocate(
     // ---------------------------------------------------------------------- //
     // Allocate MarketPlaceApp request is forwarded to master for slaves      //
     // ---------------------------------------------------------------------- //
-    id = appool->allocate(att.uid, att.gid, att.uname, att.gname, att.umask,
+    int rc = appool->allocate(att.uid, att.gid, att.uname, att.gname, att.umask,
                 ttmpl, mp_id, mp_name, &id, att.resp_msg);
 
-    if ( id < 0 )
+    if (rc < 0)
     {
-        return -1;
+        return rc;
     }
 
     mp = mppool->get(mp_id, true);

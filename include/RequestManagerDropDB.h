@@ -42,9 +42,7 @@ protected:
 
         if ( att.uid != UserPool::ONEADMIN_ID )
         {
-            att.resp_msg = "Permission denied";
             failure_response(AUTHORIZATION, att);
-
             return;
         }
 
