@@ -21,6 +21,54 @@
 /* -------------------------------------------------------------------------- */
 /* -------------------------------------------------------------------------- */
 
+static int master_allocate(MarketPlaceApp * mp, string& error)
+{
+    Client * client = Client::client();
+
+    xmlrpc_c::value         result;
+    vector<xmlrpc_c::value> values;
+
+    std::string        mp_xml;
+    std::ostringstream oss("Cannot allocate marketapp at federation master: ");
+
+    mp->to_xml(mp_xml);
+
+    try
+    {
+        client->call(client->get_endpoint(),
+                "one.marketapp.allocatedb",
+                "si",
+                &result,
+                client->get_oneauth().c_str(),
+                mp_xml);
+    }
+    catch (exception const& e)
+    {
+        oss << e.what();
+        error = oss.str();
+
+        return -1;
+    }
+
+    values = xmlrpc_c::value_array(result).vectorValueValue();
+
+    if ( xmlrpc_c::value_boolean(values[0]) == false )
+    {
+        std::string error_xml = xmlrpc_c::value_string(values[1]);
+
+        oss << error_xml;
+        error = oss.str();
+
+        return -1;
+    }
+
+    int oid = xmlrpc_c::value_int(values[1]);
+
+    return oid;
+}
+
+/* -------------------------------------------------------------------------- */
+
 int MarketPlaceAppPool:: allocate(
             int                uid,
             int                gid,
@@ -40,27 +88,22 @@ int MarketPlaceAppPool:: allocate(
 
     std::ostringstream oss;
 
-    if (Nebula::instance().is_federation_slave())
-    {
-        NebulaLog::log("ONE",Log::ERROR,
-                "MarketPlaceAppPool::allocate called, but this "
-                "OpenNebula is a federation slave");
-
-        return -1;
-    }
-
+    // -------------------------------------------------------------------------
+    // Build the marketplace app object
+    // -------------------------------------------------------------------------
     mp = new MarketPlaceApp(uid, gid, uname, gname, umask, apptemplate);
 
     mp->market_id   = mp_id;
     mp->market_name = mp_name;
+    mp->zone_id     = Nebula::instance().get_zone_id();
 
     mp->state = MarketPlaceApp::INIT;
 
-    mp->remove_template_attribute("IMPORTED");
+    if ( mp->parse_template(error_str) != 0 )
+    {
+        goto error_template;
+    }
 
-    // -------------------------------------------------------------------------
-    // Check name & duplicates
-    // -------------------------------------------------------------------------
     mp->get_template_attribute("NAME", name);
 
     if ( !PoolObjectSQL::name_is_valid(name, error_str) )
@@ -75,6 +118,18 @@ int MarketPlaceAppPool:: allocate(
         goto error_duplicated;
     }
 
+    // -------------------------------------------------------------------------
+    // Insert the object in the Database
+    // -------------------------------------------------------------------------
+    if (Nebula::instance().is_federation_slave())
+    {
+        *oid = master_allocate(mp, error_str);
+
+        delete mp;
+
+        return *oid;
+    }
+
     *oid = PoolSQL::allocate(mp, error_str);
 
     return *oid;
@@ -84,6 +139,7 @@ error_duplicated:
     error_str = oss.str();
 
 error_name:
+error_template:
     delete mp;
     *oid = -1;
 
@@ -102,7 +158,7 @@ int MarketPlaceAppPool::drop(PoolObjectSQL * objsql, std::string& error_msg)
         xmlrpc_c::value result;
         vector<xmlrpc_c::value> values;
 
-        std::ostringstream oss;
+        std::ostringstream oss("Cannot drop marketapp at federation master: ");
 
         try
         {
@@ -115,9 +171,9 @@ int MarketPlaceAppPool::drop(PoolObjectSQL * objsql, std::string& error_msg)
         }
         catch (exception const& e)
         {
-            oss << "Cannot drop  marketapp in federation master db: "<<e.what();
-            NebulaLog::log("MKP", Log::ERROR, oss);
+            oss << e.what();
 
+            error_msg = oss.str();
             return -1;
         }
 
@@ -127,8 +183,9 @@ int MarketPlaceAppPool::drop(PoolObjectSQL * objsql, std::string& error_msg)
         {
             std::string error = xmlrpc_c::value_string(values[1]);
 
-            oss << "Cannot drop marketapp in federation master db: " << error;
-            NebulaLog::log("MKP", Log::ERROR, oss);
+            oss << error;
+
+            error_msg = oss.str();
             return -1;
         }
 
@@ -144,60 +201,14 @@ int MarketPlaceAppPool::drop(PoolObjectSQL * objsql, std::string& error_msg)
 int MarketPlaceAppPool::import(const std::string& t64, int mp_id, int mp_zone_id,
         const std::string& mp_name, std::string& error_str)
 {
-	// ---------------------------------------------------------------------- //
-	// Slave forwards DB import to federation master                          //
-	// ---------------------------------------------------------------------- //
-    if (Nebula::instance().is_federation_slave())
-    {
-        Client * client = Client::client();
-
-        xmlrpc_c::value result;
-        vector<xmlrpc_c::value> values;
-
-        std::ostringstream oss;
-
-        try
-        {
-            client->call(client->get_endpoint(),
-                    "one.marketapp.allocatedb",
-                    "si",
-                    &result,
-                    client->get_oneauth().c_str(),
-					t64.c_str(),
-                    mp_id);
-        }
-        catch (exception const& e)
-        {
-            oss << "Cannot import  marketapp in federation master db: "<<e.what();
-            NebulaLog::log("MKP", Log::ERROR, oss);
-
-            return -1;
-        }
-
-        values = xmlrpc_c::value_array(result).vectorValueValue();
-
-        if ( xmlrpc_c::value_boolean(values[0]) == false )
-        {
-            std::string error = xmlrpc_c::value_string(values[1]);
-
-            oss << "Cannot import marketapp in federation master db: " << error;
-            NebulaLog::log("MKP", Log::ERROR, oss);
-            return -1;
-        }
-
-        return 0;
-    }
-
-	// ---------------------------------------------------------------------- //
-	// Master import logic                                                    //
-	// ---------------------------------------------------------------------- //
+    // -------------------------------------------------------------------------
+    // Build the marketplace app object
+    // -------------------------------------------------------------------------
     MarketPlaceApp * app = new MarketPlaceApp(UserPool::ONEADMIN_ID,
-        GroupPool::ONEADMIN_ID, UserPool::oneadmin_name,
-        GroupPool::ONEADMIN_NAME, 0133, 0);
+        GroupPool::ONEADMIN_ID, UserPool::oneadmin_name, GroupPool::ONEADMIN_NAME
+        ,0133, 0);
 
-    int rc = app->from_template64(t64, error_str);
-
-    if ( rc != 0 )
+    if ( app->from_template64(t64, error_str) != 0 )
     {
         delete app;
         return -1;
@@ -223,11 +234,22 @@ int MarketPlaceAppPool::import(const std::string& t64, int mp_id, int mp_zone_id
 
     MarketPlaceApp * mp_aux = get(app->name, 0, false);
 
-    if( mp_aux != 0 )
+    if( mp_aux != 0 ) //Marketplace app already imported
     {
-        //Marketplace app already imported
         delete app;
         return -2;
+    }
+
+    // -------------------------------------------------------------------------
+    // Insert the object in the Database
+    // -------------------------------------------------------------------------
+    if (Nebula::instance().is_federation_slave())
+    {
+        int oid = master_allocate(app, error_str);
+
+        delete app;
+
+        return oid;
     }
 
     return PoolSQL::allocate(app, error_str);
@@ -246,7 +268,7 @@ int MarketPlaceAppPool::update(PoolObjectSQL * objsql)
         xmlrpc_c::value result;
         vector<xmlrpc_c::value> values;
 
-        std::ostringstream oss;
+        std::ostringstream oss("Cannot update marketapp at federation master: ");
 
         try
         {
@@ -260,7 +282,7 @@ int MarketPlaceAppPool::update(PoolObjectSQL * objsql)
         }
         catch (exception const& e)
         {
-            oss << "Cannot update marketapp in federation master db: "<<e.what();
+            oss << e.what();
             NebulaLog::log("MKP", Log::ERROR, oss);
 
             return -1;
@@ -272,7 +294,7 @@ int MarketPlaceAppPool::update(PoolObjectSQL * objsql)
         {
             std::string error = xmlrpc_c::value_string(values[1]);
 
-            oss << "Cannot update marketapp in federation master db: " << error;
+            oss << error;
             NebulaLog::log("MKP", Log::ERROR, oss);
 
             return -1;

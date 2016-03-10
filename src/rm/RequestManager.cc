@@ -952,8 +952,12 @@ void RequestManager::register_xml_methods()
         market_rename_pt   = new MarketPlaceRename();
 
         xmlrpc_c::methodPtr market_updatedb(new MarketPlaceUpdateDB());
+        xmlrpc_c::methodPtr market_allocatedb(new MarketPlaceAllocateDB());
 
         RequestManagerRegistry.addMethod("one.market.updatedb",
+                market_updatedb);
+
+        RequestManagerRegistry.addMethod("one.market.allocatedb",
                 market_updatedb);
     }
 

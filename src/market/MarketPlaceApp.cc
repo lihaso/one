@@ -78,22 +78,11 @@ MarketPlaceApp::~MarketPlaceApp()
 /* MartketPlaceApp:: Database Access Functions                              */
 /* ************************************************************************ */
 
-int MarketPlaceApp::insert(SqlDB *db, string& error_str)
+int MarketPlaceApp::parse_template(string& error_str)
 {
-    std::ostringstream oss;
-    bool imported;
-
-    if (get_template_attribute("IMPORTED", imported) && imported)
-    {
-        return insert_replace(db, false, error_str);
-    }
-
-    // -------------------------------------------------------------------------
-    // Check default marketplace app attributes
-    // -------------------------------------------------------------------------
-
-	//MarketPlaceAppPool::allocate checks NAME
+	//MarketPlaceAppPool::allocate checks NAME & ZONE_ID
     erase_template_attribute("NAME", name);
+    remove_template_attribute("ZONE_ID");
 
     //Atrributes updated after export
     remove_template_attribute("SOURCE");
@@ -118,13 +107,6 @@ int MarketPlaceApp::insert(SqlDB *db, string& error_str)
 
     remove_template_attribute("ORIGIN_ID");
 
-    if (!get_template_attribute("ZONE_ID", zone_id))
-    {
-        goto error_zone;
-    }
-
-    remove_template_attribute("ZONE_ID");
-
     get_template_attribute("DESCRIPTION", description);
 
     get_template_attribute("APPTEMPLATE64", apptemplate64);
@@ -138,20 +120,18 @@ int MarketPlaceApp::insert(SqlDB *db, string& error_str)
 
     state = LOCKED;
 
-    //--------------------------------------------------------------------------
-
-    return insert_replace(db, false, error_str);
-
-error_zone:
-    error_str = "Missing ZONE_ID for the MARKETPLACEAPP";
-    goto error_common;
+    return 0;
 
 error_origin:
     error_str = "Missing ORIGIN_ID for the MARKETPLACEAPP";
 
-error_common:
     NebulaLog::log("MKP", Log::ERROR, error_str);
     return -1;
+}
+
+int MarketPlaceApp::insert(SqlDB *db, string& error_str)
+{
+    return insert_replace(db, false, error_str);
 }
 
 /* --------------------------------------------------------------------------- */
@@ -441,7 +421,7 @@ int MarketPlaceApp::from_template64(const std::string &info64, std::string& err)
         return -1;
     }
 
-    char *   error_msg;
+    char * error_msg;
 
     int rc = obj_template->parse(*info, &error_msg);
 
@@ -459,6 +439,7 @@ int MarketPlaceApp::from_template64(const std::string &info64, std::string& err)
 
     type      = IMAGE;
     origin_id = -1;
+
     remove_template_attribute("TYPE");
     remove_template_attribute("ORIGIN_ID");
 
@@ -472,8 +453,6 @@ int MarketPlaceApp::from_template64(const std::string &info64, std::string& err)
     get_template_attribute("DESCRIPTION", description);
     get_template_attribute("VERSION", version);
     get_template_attribute("APPTEMPLATE64", apptemplate64);
-
-    replace_template_attribute("IMPORTED", "YES");
 
     return 0;
 }

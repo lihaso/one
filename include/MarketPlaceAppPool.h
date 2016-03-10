@@ -141,8 +141,6 @@ public:
      */
     int update(PoolObjectSQL * objsql);
 
-private:
-
     /**
      *  Factory method to produce objects
      *    @return a pointer to the new object

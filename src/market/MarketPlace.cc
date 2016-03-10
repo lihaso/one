@@ -136,16 +136,11 @@ error_common:
 /* --------------------------------------------------------------------------- */
 /* --------------------------------------------------------------------------- */
 
-int MarketPlace::insert(SqlDB *db, string& error_str)
+int MarketPlace::parse_template(string& error_str)
 {
-    std::ostringstream oss;
-
-    // -------------------------------------------------------------------------
-    // Check default marketplace attributes
-    // -------------------------------------------------------------------------
-
-	//MarketPlacePool::allocate checks NAME
+	//MarketPlacePool::allocate checks NAME & ZONE_ID
     erase_template_attribute("NAME", name);
+    erase_template_attribute("ZONE_ID", name);
 
     get_template_attribute("MARKET_MAD", market_mad);
 
@@ -159,26 +154,19 @@ int MarketPlace::insert(SqlDB *db, string& error_str)
         goto error_common;
     }
 
-    if (!get_template_attribute("ZONE_ID", zone_id))
-    {
-        goto error_zone;
-    }
-
-    remove_template_attribute("ZONE_ID");
-    //--------------------------------------------------------------------------
-
-    return insert_replace(db, false, error_str);
+    return 0;
 
 error_mad:
     error_str = "No marketplace driver (MARKET_MAD) in template.";
-    goto error_common;
-
-error_zone:
-    error_str = "OpenNebula zone (ZONE_ID) not set in template.";
 
 error_common:
     NebulaLog::log("MKP", Log::ERROR, error_str);
     return -1;
+}
+
+int MarketPlace::insert(SqlDB *db, string& error_str)
+{
+    return insert_replace(db, false, error_str);
 }
 
 /* --------------------------------------------------------------------------- */

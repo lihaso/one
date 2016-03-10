@@ -369,6 +369,14 @@ private:
     static const char * table;
 
     /**
+     *  Builds the market app from the template. This function MUST be called
+     *  with apptemplate initialized
+     *    @param error_str describing the error
+     *    @return 0 on success;
+     */
+    int parse_template(string& error_str);
+
+    /**
      *  Execute an INSERT or REPLACE Sql query.
      *    @param db The SQL DB
      *    @param replace Execute an INSERT or a REPLACE

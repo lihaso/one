@@ -97,24 +97,13 @@ int MarketPlacePool::allocate(
     MarketPlace * mp;
     MarketPlace * mp_aux = 0;
 
-    std::string name;
+    std::string        name;
+    std::ostringstream oss;
 
-    ostringstream oss;
-
-    if (Nebula::instance().is_federation_slave())
-    {
-        NebulaLog::log("ONE",Log::ERROR,
-                "MarketPlacePool::allocate called, but this "
-                "OpenNebula is a federation slave");
-
-        return -1;
-    }
-
+    // -------------------------------------------------------------------------
+    // Build the marketplace object
+    // -------------------------------------------------------------------------
     mp = new MarketPlace(uid, gid, uname, gname, umask, mp_template);
-
-    // -------------------------------------------------------------------------
-    // Check name & duplicates
-    // -------------------------------------------------------------------------
 
     mp->get_template_attribute("NAME", name);
 
@@ -123,11 +112,70 @@ int MarketPlacePool::allocate(
         goto error_name;
     }
 
+    mp->zone_id = Nebula::instance().get_zone_id();
+
     mp_aux = get(name, false);
 
     if( mp_aux != 0 )
     {
         goto error_duplicated;
+    }
+
+    if (mp->parse_template(error_str) != 0)
+    {
+        goto error_parse;
+    }
+
+    // -------------------------------------------------------------------------
+    // Insert the object in the Database
+    // -------------------------------------------------------------------------
+    if (Nebula::instance().is_federation_slave())
+    {
+        Client * client = Client::client();
+
+        xmlrpc_c::value         result;
+        vector<xmlrpc_c::value> values;
+
+        std::string        mp_xml;
+        std::ostringstream oss("Cannot allocate market at federation master: ");
+
+        mp->to_xml(mp_xml);
+        delete mp;
+
+        try
+        {
+            client->call(client->get_endpoint(),
+                    "one.market.allocatedb",
+                    "si",
+                    &result,
+                    client->get_oneauth().c_str(),
+                    mp_xml);
+        }
+        catch (exception const& e)
+        {
+            oss << e.what();
+            error_str = oss.str();
+
+            return -1;
+        }
+
+        values = xmlrpc_c::value_array(result).vectorValueValue();
+
+        if ( xmlrpc_c::value_boolean(values[0]) == false )
+        {
+            std::string error_xml = xmlrpc_c::value_string(values[1]);
+
+            oss << error_xml;
+            error_str = oss.str();
+
+            return -1;
+        }
+
+        *oid = xmlrpc_c::value_int(values[1]);
+
+        delete mp;
+
+        return *oid;
     }
 
     *oid = PoolSQL::allocate(mp, error_str);
@@ -139,6 +187,7 @@ error_duplicated:
     error_str = oss.str();
 
 error_name:
+error_parse:
     delete mp;
     *oid = -1;
 
