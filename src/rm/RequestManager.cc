@@ -958,7 +958,7 @@ void RequestManager::register_xml_methods()
                 market_updatedb);
 
         RequestManagerRegistry.addMethod("one.market.allocatedb",
-                market_updatedb);
+                market_allocatedb);
     }
 
     xmlrpc_c::methodPtr market_allocate(new MarketPlaceAllocate());
