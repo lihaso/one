@@ -37,7 +37,7 @@ static int master_allocate(MarketPlaceApp * mp, string& error)
     {
         client->call(client->get_endpoint(),
                 "one.marketapp.allocatedb",
-                "si",
+                "ss",
                 &result,
                 client->get_oneauth().c_str(),
                 mp_xml.c_str());

@@ -146,7 +146,7 @@ int MarketPlacePool::allocate(
         {
             client->call(client->get_endpoint(),
                     "one.market.allocatedb",
-                    "si",
+                    "ss",
                     &result,
                     client->get_oneauth().c_str(),
                     mp_xml.c_str());
