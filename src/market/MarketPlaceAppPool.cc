@@ -99,11 +99,6 @@ int MarketPlaceAppPool:: allocate(
 
     mp->state = MarketPlaceApp::INIT;
 
-    if ( mp->parse_template(error_str) != 0 )
-    {
-        goto error_template;
-    }
-
     mp->get_template_attribute("NAME", name);
 
     if ( !PoolObjectSQL::name_is_valid(name, error_str) )
@@ -116,6 +111,11 @@ int MarketPlaceAppPool:: allocate(
     if( mp_aux != 0 )
     {
         goto error_duplicated;
+    }
+
+    if ( mp->parse_template(error_str) != 0 )
+    {
+        goto error_template;
     }
 
     // -------------------------------------------------------------------------
